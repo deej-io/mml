@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@mml-io/observable-dom-common": "^0.14.0",
-    "jsdom": "24.0.0",
+    "jsdom": "deej-io/jsdom",
     "node-fetch": "3.3.2"
   },
   "devDependencies": {
