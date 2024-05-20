@@ -33,11 +33,18 @@ export type DOMRunnerInterface = {
   getDocumentTime(): number;
 };
 
+export type ResourceURL = string | RegExp;
+
+export type DOMRunnerFactoryOptions = {
+  allowedResourceURLs?: ResourceURL[]
+}
+
 export type DOMRunnerFactory = (
   htmlPath: string,
   htmlContents: string,
   params: object,
   callback: (domRunnerMessage: DOMRunnerMessage) => void,
+  options?: DOMRunnerFactoryOptions
 ) => DOMRunnerInterface;
 
 export type LiveVirtualDOMElement = Omit<StaticVirtualDOMElement, "childNodes"> & {
@@ -68,6 +75,7 @@ export class ObservableDOM implements ObservableDOMInterface {
     observableDOMParameters: ObservableDOMParameters,
     callback: (message: ObservableDOMMessage, observableDOM: ObservableDOMInterface) => void,
     runnerFactory: DOMRunnerFactory,
+    runnerOptions: DOMRunnerFactoryOptions = {}
   ) {
     this.htmlPath = observableDOMParameters.htmlPath;
     this.ignoreTextNodes = observableDOMParameters.ignoreTextNodes;
@@ -133,6 +141,7 @@ export class ObservableDOM implements ObservableDOMInterface {
           );
         }
       },
+      runnerOptions,
     );
   }
 

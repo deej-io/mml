@@ -1,4 +1,4 @@
-import { JSDOMRunnerFactory, ObservableDOM } from "@mml-io/observable-dom";
+import { JSDOMRunnerFactory, ObservableDOM, DOMRunnerFactoryOptions } from "@mml-io/observable-dom";
 import {
   ObservableDOMInterface,
   ObservableDOMMessage,
@@ -8,8 +8,9 @@ import {
 export function LocalObservableDOMFactory(
   observableDOMParameters: ObservableDOMParameters,
   callback: (message: ObservableDOMMessage, observableDOM: ObservableDOMInterface) => void,
+  runnerFactoryOptions?: DOMRunnerFactoryOptions,
 ): ObservableDOMInterface {
-  return new ObservableDOM(observableDOMParameters, callback, JSDOMRunnerFactory);
+  return new ObservableDOM(observableDOMParameters, callback, JSDOMRunnerFactory, runnerFactoryOptions);
 }
 
 export * from "@mml-io/observable-dom";

@@ -1,4 +1,5 @@
 import { LogMessage, StaticVirtualDOMElement } from "@mml-io/observable-dom-common";
+import { DOMRunnerFactoryOptions } from "networked-dom-server";
 
 import { VirtualDOMDiffStruct } from "./common";
 import { NetworkedDOM, ObservableDOMFactory } from "./NetworkedDOM";
@@ -17,6 +18,7 @@ type LoadedState = {
 export class EditableNetworkedDOM {
   private htmlPath: string;
   private params: object = {};
+  private runnerOptions?: DOMRunnerFactoryOptions;
 
   private websockets = new Set<WebSocket>();
   private loadedState: LoadedState | null = null;
@@ -31,11 +33,13 @@ export class EditableNetworkedDOM {
     observableDOMFactory: ObservableDOMFactory,
     ignoreTextNodes = true,
     logCallback?: (message: LogMessage) => void,
+    runnerOptions?: DOMRunnerFactoryOptions,
   ) {
     this.htmlPath = htmlPath;
     this.observableDOMFactory = observableDOMFactory;
     this.ignoreTextNodes = ignoreTextNodes;
     this.logCallback = logCallback;
+    this.runnerOptions = runnerOptions;
   }
 
   public isLoaded() {
@@ -77,6 +81,7 @@ export class EditableNetworkedDOM {
       this.params,
       this.ignoreTextNodes,
       this.logCallback,
+      this.runnerOptions,
     );
     this.loadedState = {
       htmlContents,

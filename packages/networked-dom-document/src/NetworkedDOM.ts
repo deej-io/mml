@@ -25,6 +25,7 @@ import {
   findParentNodeOfNodeId,
   virtualDOMDiffToVirtualDOMMutationRecord,
 } from "./diffing";
+import type { DOMRunnerFactoryOptions } from "networked-dom-server";
 
 export const networkedDOMProtocolSubProtocol_v0_1 = "networked-dom-v0.1";
 export const defaultWebsocketSubProtocol = networkedDOMProtocolSubProtocol_v0_1;
@@ -32,6 +33,7 @@ export const defaultWebsocketSubProtocol = networkedDOMProtocolSubProtocol_v0_1;
 export type ObservableDOMFactory = (
   observableDOMParameters: ObservableDOMParameters,
   callback: (message: ObservableDOMMessage, observableDOM: ObservableDOMInterface) => void,
+  runnerOptions: DOMRunnerFactoryOptions,
 ) => ObservableDOMInterface;
 
 /**
@@ -88,6 +90,7 @@ export class NetworkedDOM {
     params = {},
     ignoreTextNodes = true,
     logCallback?: (message: LogMessage) => void,
+    runnerOptions?: DOMRunnerFactoryOptions,
   ) {
     this.htmlPath = htmlPath;
     this.ignoreTextNodes = ignoreTextNodes;
@@ -142,12 +145,12 @@ export class NetworkedDOM {
         } else {
           if (message.documentTime) {
             // This is just a regular ping message to update the document time - send the document time to all connected clients
-            this.sendPings();
-            return;
+            this.sendPings(); return;
           }
           console.error("Unknown message type from observableDOM", message);
         }
       },
+      runnerOptions
     );
   }
 

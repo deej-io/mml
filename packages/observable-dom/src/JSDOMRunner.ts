@@ -1,11 +1,11 @@
 import vm from "vm";
 
 import { LogMessage, RemoteEvent } from "@mml-io/observable-dom-common";
-import { AbortablePromise, DOMWindow, JSDOM, ResourceLoader, VirtualConsole } from "jsdom";
+import { AbortablePromise, DOMWindow, JSDOM, ResourceLoader, FetchOptions, ResourceLoaderConstructorOptions, VirtualConsole } from "jsdom";
 import * as nodeFetch from "node-fetch";
 import nodeFetchFn from "node-fetch";
 
-import { DOMRunnerFactory, DOMRunnerInterface, DOMRunnerMessage } from "./ObservableDOM";
+import { DOMRunnerFactory, DOMRunnerFactoryOptions, DOMRunnerInterface, DOMRunnerMessage, ResourceURL } from "./ObservableDOM";
 
 const ErrDOMWindowNotInitialized = "DOMWindow not initialized";
 
@@ -14,14 +14,51 @@ export const JSDOMRunnerFactory: DOMRunnerFactory = (
   htmlContents: string,
   params: object,
   callback: (mutationList: DOMRunnerMessage) => void,
+  options?: DOMRunnerFactoryOptions,
 ): DOMRunnerInterface => {
-  return new JSDOMRunner(htmlPath, htmlContents, params, callback);
+  const resourceLoader = options?.allowedResourceURLs !== undefined ?
+    new AllowListResourceLoader(...options.allowedResourceURLs) :
+    undefined;
+
+  return new JSDOMRunner(htmlPath, htmlContents, params, callback, resourceLoader);
 };
 
 // This is used to stop JSDOM trying to load resources
 class RejectionResourceLoader extends ResourceLoader {
   public fetch(url: string): AbortablePromise<Buffer> | null {
     console.error("RejectionResourceLoader.fetch", url);
+    return null;
+  }
+}
+
+// This allows JSDOM to load resources if their URLs are specified here. This should only be used to load
+// trusted scripts otherwise any user could run arbitary code in the DOM.
+export class AllowListResourceLoader extends ResourceLoader {
+  private urls: ResourceURL[]
+
+  constructor(...urls: ResourceURL[])
+  constructor(opts: ResourceLoaderConstructorOptions, ...urls: ResourceURL[])
+  constructor(urlOrOpts: ResourceLoaderConstructorOptions | ResourceURL, ...urls: ResourceURL[]) {
+    if (typeof urlOrOpts !== 'string' && !(urlOrOpts instanceof RegExp)) {
+      super(urlOrOpts)
+    } else {
+      super()
+      urls.unshift(urlOrOpts)
+    }
+    this.urls = urls
+  }
+  public fetch(url: string, opts?: FetchOptions): AbortablePromise<Buffer> | null {
+    const allow = this.urls.every(allowedURL => {
+      return typeof allowedURL === 'string' ?
+        allowedURL === url :
+        allowedURL.test(url);
+    })
+
+    if (allow) {
+      return super.fetch(url, opts ?? {});
+    }
+
+    console.error("AllowListResourceLoader.fetch: resource not allowed", url);
     return null;
   }
 }
@@ -50,13 +87,14 @@ export class JSDOMRunner implements DOMRunnerInterface {
     htmlContents: string,
     params: object,
     callback: (domRunnerMessage: DOMRunnerMessage) => void,
+    resourceLoader?: AllowListResourceLoader
   ) {
     this.htmlPath = htmlPath;
     this.callback = callback;
 
     this.jsdom = new JSDOM(htmlContents, {
       runScripts: "dangerously",
-      resources: new RejectionResourceLoader(),
+      resources: resourceLoader ?? new RejectionResourceLoader(),
       url: this.htmlPath,
       virtualConsole: this.createVirtualConsole(),
       beforeParse: (window) => {
