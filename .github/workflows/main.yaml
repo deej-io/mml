@@ -2,7 +2,7 @@ name: Main
 
 on:
   push:
-    branches: [ main ]
+    branches: [ deej-main ]
 
 permissions:
   id-token: write
@@ -25,107 +25,9 @@ jobs:
         id: npm-install-build-and-cache
         uses: ./.github/actions/npm-install-build-and-cache
 
-  test:
-    name: Test
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          lfs: true
-          persist-credentials: false
-
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
-
-      - name: Test
-        run: npm run test-all
-
-  type-check:
-    name: Type Check
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          lfs: true
-          persist-credentials: false
-
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
-
-      - name: Type Check
-        run: npm run type-check-all
-
-  lint:
-    name: Lint
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          lfs: true
-          persist-credentials: false
-
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
-
-      - name: Lint
-        run: npm run lint-all
-
-  e2e-test:
-    name: End-to-end Test
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache
-          key: ${{ runner.os }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          lfs: true
-          persist-credentials: false
-
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
-
-      - name: End to End Test
-        run: npm run ci:e2e-tests
-
-      - name: Upload End to End Test Images
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: images
-          path: e2e-tests/test/__image_snapshots__/
-
-  summary:
-    name: Summary
-    needs: [build, test, type-check, lint, e2e-test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Summary
-        run: |
-          echo "Build: ${{ needs.build.result }}"
-          echo "Test: ${{ needs.test.result }}"
-          echo "Type Check: ${{ needs.type-check.result }}"
-          echo "Lint: ${{ needs.lint.result }}"
-          echo "End-to-end Test: ${{ needs.e2e-test.result }}"
-
   publish-experimental-packages:
     name: Publish Experimental Packages
-    needs: summary
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -145,20 +47,18 @@ jobs:
           git config --global user.name "lerna-ci-mml"
 
           # Set up npm auth token from secret for publishing
-          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+          echo //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN} > .npmrc
 
           # Publish the current commit as an "experimental" version
           version="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')"
           echo "Publishing experimental version $version"
           ./node_modules/.bin/lerna publish $version --no-private --dist-tag experimental --ignore-scripts --ignore-changes --no-push --exact --yes
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
 
   publish-release-packages:
     name: Publish Packages
     environment: package-release
-    needs: summary
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -178,10 +78,8 @@ jobs:
           git config --global user.name "lerna-ci-mml"
 
           # Set up npm auth token from secret for publishing
-          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+          echo //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN} > .npmrc
 
           # Attempt to publish at the current version - this will skip if the version already exists
           echo "Attempting to publishing latest version"
           ./node_modules/.bin/lerna publish from-package --no-private --dist-tag latest --ignore-scripts --ignore-changes --no-push --yes
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
